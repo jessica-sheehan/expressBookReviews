@@ -58,35 +58,54 @@ regd_users.post("/login", (req,res) => {
 
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
-  const isbn = req.params.isbn;
-  const username = req.body.username;
-  const review = req.body.review;
-  if(!isbn||!username||!review){
-    return res.status(400).json({message: "Error: Invalid request!"});
-  }
-  if(!isValid(username)){
-    return res.status(400).json({message: "Error: Invalid username!"});
-  }
-  if(!books[isbn]){
-    return res.status(400).json({message: "Error: Invalid ISBN!"});
-  }
-  books[isbn].reviews[username]=review;
-  return res.status(200).json({message: "Review added successfully!"});
+    try {
+        const requestedIsbn = req.params.isbn;
+        const reviewText = req.query.review;
+        const username = req.session.authorization.username; // Assuming username is stored in the session
+    
+        if (!username) {
+          return res.status(401).json({ message: "Unauthorized" }); // Handle unauthorized access
+        }
+    
+        const book = books[requestedIsbn];
+    
+        if (book) {
+          book.reviews[username] = reviewText; // Add or modify review based on username
+          res.json({ message: "Review added/modified successfully" });
+        } else {
+          res.status(404).json({ message: "Book not found" }); // Handle book not found
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error adding/modifying review" }); // Handle unexpected errors
+      }
 });
 
 regd_users.delete("/auth/review/:isbn", (req, res) => {
-  const isbn = req.params.isbn;
-  const username = req.body.username;
-  if(!isbn||!username){
-    return res.status(400).json({message: "Error: Invalid request!"});
-  }
-  if(!isValid(username)){
-    return res.status(400).json({message: "Error: Invalid username!"});   
-  }
-  if(!books[isbn]){
-    return res.status(400).json({message: "Error: Invalid ISBN!"});
-  }
-  delete books[isbn].reviews[username];
+    try {
+        const requestedIsbn = req.params.isbn;
+        const username = req.session.authorization.username; // Retrieve username from session
+    
+        if (!username) {
+          return res.status(401).json({ message: "Unauthorized" }); // Handle unauthorized access
+        }
+    
+        const book = books[requestedIsbn];
+    
+        if (book) {
+          if (book.reviews[username]) { // Check if a review exists for the user
+            delete book.reviews[username]; // Delete the user's review
+            res.json({ message: "Review deleted successfully" });
+          } else {
+            res.status(404).json({ message: "Review not found" }); // Handle review not found
+          }
+        } else {
+          res.status(404).json({ message: "Book not found" }); // Handle book not found
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error deleting review" }); // Handle unexpected errors
+      }
 });
 
 module.exports.authenticated = regd_users;
